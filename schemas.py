@@ -5,3 +5,9 @@ class UserBase(BaseModel):
     password: str
     class Config:
         from_attributes = True
+
+class TreeBase(BaseModel):
+    title: str
+    url: str
+    class Config:
+        from_attributes = True
