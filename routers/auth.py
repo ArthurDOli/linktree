@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from schemas import UserBase
+from schemas import UserBase, UserDisplay
 from sqlalchemy.orm import Session
 from database import getSession
-from security.hashing import bcrypt_context, ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY, ALGORITHM
+from security.hashing import bcrypt_context, ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY, ALGORITHM, oauth2_schema
 from models import User
 from datetime import timedelta, datetime, timezone
-from jose import jwt
+from jose import jwt, JWTError
 from typing import Union
+from fastapi.security import OAuth2PasswordRequestForm
 
 auth_router = APIRouter(prefix='/auth', tags=['Authentication'])
 
@@ -36,8 +37,8 @@ def create_access_token(user_id, duration=timedelta(minutes=ACCESS_TOKEN_EXPIRE_
     return jwt_cod
 
 @auth_router.post('/login')
-async def login(user_schema: UserBase, session: Session = Depends(getSession)):
-    user = authenticate_user(user_schema.username, user_schema.password, session)
+async def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(getSession)):
+    user = authenticate_user(form_data.username, form_data.password, session)
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="User not found or invalid credentials", headers={'WWW-Authenticate': 'Bearer'})
     else:
@@ -48,3 +49,25 @@ async def login(user_schema: UserBase, session: Session = Depends(getSession)):
             'refresh_token': refresh_token,
             'token_type': 'Bearer'
         }
+    
+async def get_current_user(token: str = Depends(oauth2_schema), session: Session = Depends(getSession)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail='Could not validate credentials',
+        headers={'WWW-Authenticate': 'Bearer'}
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get('sub')
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    user = session.query(User).filter(User.id==user_id).first()
+    if user is None:
+        return credentials_exception
+    return user
+
+@auth_router.get('/me', response_model=UserDisplay)
+async def read_users_me(current_user: User = Depends(get_current_user)):
+    return current_user
