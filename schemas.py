@@ -11,3 +11,9 @@ class TreeBase(BaseModel):
     url: str
     class Config:
         from_attributes = True
+
+class UserDisplay(BaseModel):
+    id: int
+    username: str
+    class Config:
+        from_attributes = True
