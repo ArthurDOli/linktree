@@ -39,7 +39,6 @@ Siga os passos abaixo para configurar e executar o projeto localmente:
     ```
 
 3.  **Instale as dependências:**
-    (Nota: Crie um arquivo `requirements.txt` primeiro executando `pip freeze > requirements.txt` no seu terminal)
 
     ```bash
     pip install -r requirements.txt
